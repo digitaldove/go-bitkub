@@ -23,6 +23,7 @@ type Client struct {
 	UserAgent string
 
 	Server *ServerService
+	Market *MarketService
 
 	common service
 	nonce  uint64
@@ -39,6 +40,7 @@ func NewClient(options ...interface{}) *Client {
 	}
 	c.common.client = c
 	c.Server = (*ServerService)(&c.common)
+	c.Market = (*MarketService)(&c.common)
 	return c
 }
 
