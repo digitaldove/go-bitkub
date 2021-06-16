@@ -2,11 +2,6 @@ package bitkub
 
 import "context"
 
-type Response struct {
-	Error  int
-	Result interface{}
-}
-
 type MarketService service
 
 func (s *MarketService) Wallet(ctx context.Context, creds *Credentials) (map[string]float32, error) {

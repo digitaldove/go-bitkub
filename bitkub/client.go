@@ -3,6 +3,7 @@ package bitkub
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -82,11 +83,7 @@ func (c *Client) request(method, endpoint string, body io.ReadWriter) (*http.Req
 	return req, nil
 }
 
-func (c *Client) reqGet(endpoint string) (*http.Request, error) {
-	return c.request(http.MethodGet, endpoint, nil)
-}
-
-func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
+func (c *Client) do(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
 	req = req.WithContext(ctx)
 	res, err := c.client.Do(req)
 	if err != nil {
@@ -94,4 +91,30 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 		return nil, err
 	}
 	return res, json.NewDecoder(res.Body).Decode(v)
+}
+
+func (c *Client) fetch(endpoint string, ctx context.Context, input map[string]interface{}, output interface{}) error {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+	if input != nil {
+		q := url.Values{}
+		for k, v := range input {
+			if vs, ok := v.(string); ok {
+				q.Set(k, vs)
+			} else if vs, ok := v.(fmt.Stringer); ok {
+				q.Set(k, vs.String())
+			} else {
+				q.Set(k, fmt.Sprintf("%v", v))
+			}
+		}
+		u.RawQuery = q.Encode()
+	}
+	req, err := c.request(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	_, err = c.do(ctx, req, output)
+	return err
 }

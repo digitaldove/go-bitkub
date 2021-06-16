@@ -14,21 +14,17 @@ type EndpointStatus struct {
 }
 
 func (s *ServerService) Status(ctx context.Context) ([]EndpointStatus, error) {
-	req, err := s.client.reqGet("/api/status")
-	if err != nil {
+	var res []EndpointStatus
+	if err := s.client.fetch("/api/status", ctx, nil, &res); err != nil {
 		return nil, err
 	}
-	var res []EndpointStatus
-	_, err = s.client.Do(ctx, req, &res)
-	return res, err
+	return res, nil
 }
 
 func (s *ServerService) Time(ctx context.Context) (time.Time, error) {
-	req, err := s.client.reqGet("/api/servertime")
-	if err != nil {
+	var res int64
+	if err := s.client.fetch("/api/servertime", ctx, nil, &res); err != nil {
 		return time.Time{}, err
 	}
-	var res int64
-	_, err = s.client.Do(ctx, req, &res)
-	return time.Unix(res, 0), err
+	return time.Unix(res, 0), nil
 }

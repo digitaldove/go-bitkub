@@ -13,6 +13,11 @@ import (
 	"time"
 )
 
+type Response struct {
+	Error  int
+	Result interface{}
+}
+
 func (c *Client) nextNonce() uint64 {
 	return atomic.AddUint64(&c.nonce, 1)
 }
@@ -56,7 +61,7 @@ func (c *Client) fetchSecure(endpoint string, ctx context.Context, creds *Creden
 	var res = Response{
 		Result: output,
 	}
-	if _, err := c.Do(ctx, req, &res); err != nil {
+	if _, err := c.do(ctx, req, &res); err != nil {
 		return err
 	}
 
