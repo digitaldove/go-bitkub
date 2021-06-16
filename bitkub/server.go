@@ -1,6 +1,9 @@
 package bitkub
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type ServerService service
 
@@ -18,4 +21,14 @@ func (s *ServerService) Status(ctx context.Context) ([]EndpointStatus, error) {
 	var res []EndpointStatus
 	_, err = s.client.Do(ctx, req, &res)
 	return res, err
+}
+
+func (s *ServerService) Time(ctx context.Context) (time.Time, error) {
+	req, err := s.client.reqGet("/api/servertime")
+	if err != nil {
+		return time.Time{}, err
+	}
+	var res int64
+	_, err = s.client.Do(ctx, req, &res)
+	return time.Unix(res, 0), err
 }
