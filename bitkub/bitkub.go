@@ -3,6 +3,7 @@ package bitkub
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -11,6 +12,7 @@ import (
 const (
 	defaultBaseURL = "https://api.bitkub.com/"
 	userAgent      = "go-bitkub"
+	headerApiKey   = "X-BTK-APIKEY"
 )
 
 type Client struct {
@@ -23,6 +25,7 @@ type Client struct {
 	Server *ServerService
 
 	common service
+	nonce  uint64
 }
 
 func NewClient(options ...interface{}) *Client {
@@ -43,18 +46,29 @@ type service struct {
 	client *Client
 }
 
-func (c *Client) reqGet(endpoint string) (*http.Request, error) {
+func (c *Client) request(method, endpoint string, body io.ReadWriter) (*http.Request, error) {
+	// https://github.com/google/go-github/blob/master/github/github.go
 	u, err := c.BaseURL.Parse(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+
+	req, err := http.NewRequest(method, u.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", c.UserAgent)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
 	return req, nil
+}
+
+func (c *Client) reqGet(endpoint string) (*http.Request, error) {
+	return c.request(http.MethodGet, endpoint, nil)
 }
 
 func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
