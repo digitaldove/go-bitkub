@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 )
 
 const (
@@ -16,7 +15,6 @@ const (
 )
 
 type Client struct {
-	ctx    context.Context
 	client *http.Client
 
 	BaseURL   *url.URL
@@ -29,18 +27,33 @@ type Client struct {
 	nonce  uint64
 }
 
-func NewClient(options ...interface{}) *Client {
-	baseURL, _ := url.Parse(defaultBaseURL)
-	c := &Client{
-		client: &http.Client{
-			Timeout: 1 * time.Second,
-		},
-		BaseURL:   baseURL,
-		UserAgent: userAgent,
+func NewClient(options ...*Options) *Client {
+	var opts Options
+	if len(options) > 0 {
+		opts = *options[0]
 	}
+
+	c := new(Client)
+	if opts.Client != nil {
+		c.client = opts.Client
+	} else {
+		c.client = new(http.Client)
+	}
+	if opts.BaseURL != nil {
+		c.BaseURL = opts.BaseURL
+	} else {
+		c.BaseURL, _ = url.Parse(defaultBaseURL)
+	}
+	if opts.UserAgent != "" {
+		c.UserAgent = opts.UserAgent
+	} else {
+		c.UserAgent = userAgent
+	}
+
 	c.common.client = c
 	c.Server = (*ServerService)(&c.common)
 	c.Market = (*MarketService)(&c.common)
+
 	return c
 }
 
