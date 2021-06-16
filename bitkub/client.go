@@ -83,14 +83,25 @@ func (c *Client) request(method, endpoint string, body io.ReadWriter) (*http.Req
 	return req, nil
 }
 
-func (c *Client) do(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
+func (c *Client) do(ctx context.Context, req *http.Request, output interface{}) (*Response, error) {
 	req = req.WithContext(ctx)
-	res, err := c.client.Do(req)
+	// TODO do something with http.Response?
+	httpRes, err := c.client.Do(req)
 	if err != nil {
 		// TODO return ctx?.err
 		return nil, err
 	}
-	return res, json.NewDecoder(res.Body).Decode(v)
+
+	res := new(Response)
+	res.Result = output
+	if err := json.NewDecoder(httpRes.Body).Decode(res); err != nil {
+		return nil, err
+	}
+
+	if res.Error != 0 {
+		return res, newBtkError(res.Error)
+	}
+	return res, nil
 }
 
 func (c *Client) fetch(endpoint string, ctx context.Context, input map[string]interface{}, output interface{}) error {

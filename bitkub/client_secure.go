@@ -8,27 +8,39 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync/atomic"
 	"time"
 )
 
 type Response struct {
-	Error  int
-	Result interface{}
+	Error      int         `json:"error"`
+	Result     interface{} `json:"result"`
+	Pagination Pagination  `json:"pagination,omitempty"`
+}
+
+type Pagination struct {
+	InBody bool `json:"-"`
+	Page   int  `json:"page"`
+	Limit  int  `json:"limit,omitempty"`
+	Last   int  `json:"last"`
+	Next   int  `json:"next,omitempty"`
+	Prev   int  `json:"prev,omitempty"`
+	Done   bool `json:"-"`
 }
 
 func (c *Client) nextNonce() uint64 {
 	return atomic.AddUint64(&c.nonce, 1)
 }
 
-func (c *Client) fetchSecure(endpoint string, ctx context.Context, creds *Credentials, input, output interface{}) error {
+func (c *Client) fetchSecure2(endpoint string, ctx context.Context, creds *Credentials, input, output interface{}) (*Response, error) {
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
 	if input != nil {
 		if err := enc.Encode(input); err != nil {
-			return err
+			return nil, err
 		}
 		buf.Truncate(buf.Len() - 2) // remove the newline and closing }
 		buf.WriteString(`,"ts":`)
@@ -44,7 +56,7 @@ func (c *Client) fetchSecure(endpoint string, ctx context.Context, creds *Creden
 
 	h := hmac.New(sha256.New, creds.Secret)
 	if _, err := bytes.NewReader(buf.Bytes()).WriteTo(h); err != nil {
-		return err
+		return nil, err
 	}
 	buf.Truncate(buf.Len() - 1) // remove the closing }
 	buf.WriteString(`,"sig":"`)
@@ -53,21 +65,46 @@ func (c *Client) fetchSecure(endpoint string, ctx context.Context, creds *Creden
 
 	req, err := c.request(http.MethodPost, endpoint, buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req.Header.Set(headerApiKey, creds.Key)
 
-	var res = Response{
-		Result: output,
+	return c.do(ctx, req, output)
+}
+
+func (c *Client) fetchSecure(endpoint string, ctx context.Context, creds *Credentials, input, output interface{}) error {
+	_, err := c.fetchSecure2(endpoint, ctx, creds, input, output)
+	return err
+}
+
+func (c *Client) fetchSecureList(endpoint string, ctx context.Context, creds *Credentials,
+	pagination *Pagination, input, output interface{}) error {
+	if (pagination.Page > 0 || pagination.Limit > 0) && !pagination.InBody {
+		u, err := url.Parse(endpoint)
+		if err != nil {
+			return err
+		}
+		q := make(url.Values)
+		if pagination.Page > 0 {
+			q.Set("p", strconv.Itoa(pagination.Page))
+		}
+		if pagination.Limit > 0 {
+			q.Set("lmt", strconv.Itoa(pagination.Limit))
+		}
+		u.RawQuery = q.Encode()
+		endpoint = u.String()
 	}
-	if _, err := c.do(ctx, req, &res); err != nil {
+	raw, err := c.fetchSecure2(endpoint, ctx, creds, input, output)
+	if err != nil {
 		return err
 	}
-
-	if res.Error != 0 {
-		return newBtkError(res.Error)
+	pagination.Page = raw.Pagination.Page
+	pagination.Last = raw.Pagination.Last
+	if pagination.Page == pagination.Last {
+		pagination.Done = true
+	} else {
+		pagination.Page++
 	}
-
 	return nil
 }
