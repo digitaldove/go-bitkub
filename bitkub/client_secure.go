@@ -58,7 +58,7 @@ func (c *Client) fetchSecure2(endpoint string, ctx context.Context, input, outpu
 	if overrideCreds, ok := ctx.Value(CtxKeyCredentials).(*Credentials); ok && overrideCreds != nil {
 		creds = overrideCreds
 	}
-	if creds==nil{
+	if creds == nil {
 		return nil, ErrUnauthenticated
 	}
 	h := hmac.New(sha256.New, creds.Secret)
@@ -77,7 +77,15 @@ func (c *Client) fetchSecure2(endpoint string, ctx context.Context, input, outpu
 
 	req.Header.Set(headerApiKey, creds.Key)
 
-	return c.do(ctx, req, output)
+	res := new(Response)
+	res.Result = output
+	if err := c.do(ctx, req, res); err != nil {
+		return nil, err
+	}
+	if res.Error != 0 {
+		return res, newBtkError(res.Error)
+	}
+	return res, nil
 }
 
 func (c *Client) fetchSecure(endpoint string, ctx context.Context, input, output interface{}) error {

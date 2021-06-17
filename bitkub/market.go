@@ -2,6 +2,7 @@ package bitkub
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -22,8 +23,36 @@ type Symbol struct {
 }
 
 func (s *MarketService) ListSymbols(ctx context.Context) ([]*Symbol, error) {
+	out := new(Response)
 	var res []*Symbol
-	if err := s.client.fetch("/api/market/symbols", ctx, nil, &res); err != nil {
+	out.Result = &res
+	if err := s.client.fetch("/api/market/symbols", ctx, nil, out); err != nil {
+		return nil, err
+	}
+	if out.Error != 0 {
+		return nil, btkError{Code: out.Error}
+	}
+	return res, nil
+}
+
+type Ticker struct {
+	ID            int     `json:"id"`
+	Last          float64 `json:"last"`
+	LowestAsk     float64 `json:"lowestAsk"`
+	HighestBid    float64 `json:"highestBid"`
+	PercentChange float64 `json:"percentChange"`
+	BaseVolume    float64 `json:"baseVolume"`
+	QuoteVolume   float64 `json:"quoteVolume"`
+	IsFrozen      int    `json:"isFrozen"`
+	High24Hr      float64 `json:"high24Hr"`
+	Low24Hr       float64 `json:"low24Hr"`
+}
+
+func (s *MarketService) GetTicker(ctx context.Context, symbols ...string) (map[string]*Ticker, error) {
+	res := make(map[string]*Ticker)
+	input := make(map[string]interface{})
+	input["sym"] = strings.Join(symbols, ",")
+	if err := s.client.fetch("/api/market/ticker", ctx, input, &res); err != nil {
 		return nil, err
 	}
 	return res, nil

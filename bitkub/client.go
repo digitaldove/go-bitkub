@@ -1,6 +1,7 @@
 package bitkub
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -88,25 +89,25 @@ func (c *Client) request(method, endpoint string, body io.ReadWriter) (*http.Req
 	return req, nil
 }
 
-func (c *Client) do(ctx context.Context, req *http.Request, output interface{}) (*Response, error) {
+func (c *Client) do(ctx context.Context, req *http.Request, output interface{}) error {
 	req = req.WithContext(ctx)
 	// TODO do something with http.Response?
 	httpRes, err := c.client.Do(req)
 	if err != nil {
 		// TODO return ctx?.err
-		return nil, err
+		return err
 	}
 
-	res := new(Response)
-	res.Result = output
-	if err := json.NewDecoder(httpRes.Body).Decode(res); err != nil {
-		return nil, err
+	buf := bytes.Buffer{}
+	if _, err = buf.ReadFrom(httpRes.Body); err != nil {
+		return err
+	}
+	defer httpRes.Body.Close()
+	if err := json.Unmarshal(buf.Bytes(), output); err != nil {
+		return err
 	}
 
-	if res.Error != 0 {
-		return res, newBtkError(res.Error)
-	}
-	return res, nil
+	return nil
 }
 
 func (c *Client) fetch(endpoint string, ctx context.Context, input map[string]interface{}, output interface{}) error {
@@ -131,6 +132,5 @@ func (c *Client) fetch(endpoint string, ctx context.Context, input map[string]in
 	if err != nil {
 		return err
 	}
-	_, err = c.do(ctx, req, output)
-	return err
+	return c.do(ctx, req, output)
 }
