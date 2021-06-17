@@ -21,6 +21,8 @@ type Client struct {
 	BaseURL   *url.URL
 	UserAgent string
 
+	Credentials *Credentials
+
 	Server *ServerService
 	Market *MarketService
 
@@ -49,6 +51,9 @@ func NewClient(options ...*Options) *Client {
 		c.UserAgent = opts.UserAgent
 	} else {
 		c.UserAgent = userAgent
+	}
+	if opts.Credentials != nil {
+		c.Credentials = opts.Credentials
 	}
 
 	c.common.client = c

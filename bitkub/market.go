@@ -7,9 +7,9 @@ import (
 
 type MarketService service
 
-func (s *MarketService) Wallet(ctx context.Context, creds *Credentials) (map[string]float32, error) {
+func (s *MarketService) Wallet(ctx context.Context) (map[string]float32, error) {
 	res := make(map[string]float32)
-	if err := s.client.fetchSecure("/api/market/wallet", ctx, creds, nil, &res); err != nil {
+	if err := s.client.fetchSecure("/api/market/wallet", ctx, nil, &res); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -56,7 +56,7 @@ type MyOrderHistoryRequest struct {
 	Pagination *Pagination
 }
 
-func (s *MarketService) MyOrderHistory(ctx context.Context, creds *Credentials, req *MyOrderHistoryRequest) ([]*OrderHistory, error) {
+func (s *MarketService) MyOrderHistory(ctx context.Context, req *MyOrderHistoryRequest) ([]*OrderHistory, error) {
 	// TODO err if pagination nil
 	req.Pagination.InBody = true
 	input := make(map[string]interface{})
@@ -74,7 +74,7 @@ func (s *MarketService) MyOrderHistory(ctx context.Context, creds *Credentials, 
 		input["lmt"] = req.Pagination.Limit
 	}
 	var output []*OrderHistory
-	if err := s.client.fetchSecureList("/api/market/my-order-history", ctx, creds, req.Pagination, input, &output); err != nil {
+	if err := s.client.fetchSecureList("/api/market/my-order-history", ctx, req.Pagination, input, &output); err != nil {
 		return nil, err
 	}
 	return output, nil

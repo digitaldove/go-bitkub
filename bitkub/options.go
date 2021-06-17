@@ -6,7 +6,8 @@ import (
 )
 
 type Options struct {
-	Client    *http.Client
-	BaseURL   *url.URL
-	UserAgent string
+	Client      *http.Client
+	BaseURL     *url.URL
+	UserAgent   string
+	Credentials *Credentials
 }

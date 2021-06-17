@@ -34,7 +34,7 @@ func (c *Client) nextNonce() uint64 {
 	return atomic.AddUint64(&c.nonce, 1)
 }
 
-func (c *Client) fetchSecure2(endpoint string, ctx context.Context, creds *Credentials, input, output interface{}) (*Response, error) {
+func (c *Client) fetchSecure2(endpoint string, ctx context.Context, input, output interface{}) (*Response, error) {
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
@@ -54,6 +54,13 @@ func (c *Client) fetchSecure2(endpoint string, ctx context.Context, creds *Crede
 	*/
 	buf.WriteRune('}')
 
+	creds := c.Credentials
+	if overrideCreds, ok := ctx.Value(CtxKeyCredentials).(*Credentials); ok && overrideCreds != nil {
+		creds = overrideCreds
+	}
+	if creds==nil{
+		return nil, ErrUnauthenticated
+	}
 	h := hmac.New(sha256.New, creds.Secret)
 	if _, err := bytes.NewReader(buf.Bytes()).WriteTo(h); err != nil {
 		return nil, err
@@ -73,12 +80,12 @@ func (c *Client) fetchSecure2(endpoint string, ctx context.Context, creds *Crede
 	return c.do(ctx, req, output)
 }
 
-func (c *Client) fetchSecure(endpoint string, ctx context.Context, creds *Credentials, input, output interface{}) error {
-	_, err := c.fetchSecure2(endpoint, ctx, creds, input, output)
+func (c *Client) fetchSecure(endpoint string, ctx context.Context, input, output interface{}) error {
+	_, err := c.fetchSecure2(endpoint, ctx, input, output)
 	return err
 }
 
-func (c *Client) fetchSecureList(endpoint string, ctx context.Context, creds *Credentials,
+func (c *Client) fetchSecureList(endpoint string, ctx context.Context,
 	pagination *Pagination, input, output interface{}) error {
 	if (pagination.Page > 0 || pagination.Limit > 0) && !pagination.InBody {
 		u, err := url.Parse(endpoint)
@@ -95,7 +102,7 @@ func (c *Client) fetchSecureList(endpoint string, ctx context.Context, creds *Cr
 		u.RawQuery = q.Encode()
 		endpoint = u.String()
 	}
-	raw, err := c.fetchSecure2(endpoint, ctx, creds, input, output)
+	raw, err := c.fetchSecure2(endpoint, ctx, input, output)
 	if err != nil {
 		return err
 	}

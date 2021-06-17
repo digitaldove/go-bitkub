@@ -1,9 +1,16 @@
 package bitkub
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // https://github.com/bitkub/bitkub-official-api-docs/blob/master/restful-api.md#error-codes
-var errorMessages = make(map[int]string)
+var (
+	errorMessages = make(map[int]string)
+
+	ErrUnauthenticated = errors.New("no credentials was provided")
+)
 
 func init() {
 	errorMessages[0] = "No error" // should not be an error
