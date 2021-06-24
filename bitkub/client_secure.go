@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -28,6 +30,58 @@ type Pagination struct {
 	Next   int  `json:"next,omitempty"`
 	Prev   int  `json:"prev,omitempty"`
 	Done   bool `json:"-"`
+}
+
+// UnmarshalJSON override required because API does not return correct data types as documented (and inconsistent)
+func (p *Pagination) UnmarshalJSON(b []byte) error {
+	raw := make(map[string]interface{})
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	intHelper := func(key string, omitEmpty bool, target *int) error {
+		val, ok := raw[key]
+		if !ok {
+			if !omitEmpty {
+				// TODO error?
+				return nil
+			}
+			return nil
+		}
+		switch val.(type) {
+		case float64:
+			// +0.5 because https://stackoverflow.com/questions/8022389/convert-a-float64-to-an-int-in-go
+			*target = (int)(val.(float64) + 0.5)
+		case string:
+			var err error
+			if *target, err = strconv.Atoi(val.(string)); err != nil {
+				return err
+			}
+		default:
+			return &json.UnmarshalTypeError{
+				Value:  fmt.Sprintf("%v", val),
+				Type:   reflect.TypeOf(*target),
+				Struct: "Pagination",
+				Field:  key,
+			}
+		}
+		return nil
+	}
+	if err := intHelper("page", false, &p.Page); err != nil {
+		return err
+	}
+	if err := intHelper("limit", true, &p.Limit); err != nil {
+		return err
+	}
+	if err := intHelper("last", false, &p.Last); err != nil {
+		return err
+	}
+	if err := intHelper("next", true, &p.Next); err != nil {
+		return err
+	}
+	if err := intHelper("prev", true, &p.Prev); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Client) nextNonce() uint64 {
