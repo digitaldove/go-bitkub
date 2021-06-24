@@ -26,6 +26,8 @@ type Client struct {
 
 	Server *ServerService
 	Market *MarketService
+	Fiat   *FiatService
+	Crypto *CryptoService
 
 	common service
 	nonce  uint64
@@ -60,6 +62,8 @@ func NewClient(options ...*Options) *Client {
 	c.common.client = c
 	c.Server = (*ServerService)(&c.common)
 	c.Market = (*MarketService)(&c.common)
+	c.Fiat = (*FiatService)(&c.common)
+	c.Crypto = (*CryptoService)(&c.common)
 
 	return c
 }
