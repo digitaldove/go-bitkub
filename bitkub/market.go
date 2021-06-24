@@ -43,7 +43,7 @@ type Ticker struct {
 	PercentChange float64 `json:"percentChange"`
 	BaseVolume    float64 `json:"baseVolume"`
 	QuoteVolume   float64 `json:"quoteVolume"`
-	IsFrozen      int    `json:"isFrozen"`
+	IsFrozen      int     `json:"isFrozen"`
 	High24Hr      float64 `json:"high24Hr"`
 	Low24Hr       float64 `json:"low24Hr"`
 }
@@ -82,11 +82,10 @@ type MyOrderHistoryRequest struct {
 	Symbol     string
 	From       time.Time
 	To         time.Time
-	Pagination *Pagination
+	Pagination Pagination
 }
 
 func (s *MarketService) MyOrderHistory(ctx context.Context, req *MyOrderHistoryRequest) ([]*OrderHistory, error) {
-	// TODO err if pagination nil
 	req.Pagination.InBody = true
 	input := make(map[string]interface{})
 	input["sym"] = req.Symbol
@@ -103,7 +102,7 @@ func (s *MarketService) MyOrderHistory(ctx context.Context, req *MyOrderHistoryR
 		input["lmt"] = req.Pagination.Limit
 	}
 	var output []*OrderHistory
-	if err := s.client.fetchSecureList("/api/market/my-order-history", ctx, req.Pagination, input, &output); err != nil {
+	if err := s.client.fetchSecureList("/api/market/my-order-history", ctx, &req.Pagination, input, &output); err != nil {
 		return nil, err
 	}
 	return output, nil

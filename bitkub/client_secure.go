@@ -98,6 +98,7 @@ func (c *Client) fetchSecureList(endpoint string, ctx context.Context,
 	if (pagination.Page > 0 || pagination.Limit > 0) && !pagination.InBody {
 		u, err := url.Parse(endpoint)
 		if err != nil {
+			pagination.Done = true
 			return err
 		}
 		q := make(url.Values)
@@ -112,6 +113,7 @@ func (c *Client) fetchSecureList(endpoint string, ctx context.Context,
 	}
 	raw, err := c.fetchSecure2(endpoint, ctx, input, output)
 	if err != nil {
+		pagination.Done = true
 		return err
 	}
 	pagination.Page = raw.Pagination.Page
