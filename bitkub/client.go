@@ -107,14 +107,11 @@ func (c *Client) do(ctx context.Context, req *http.Request, output interface{}) 
 		return err
 	}
 	defer httpRes.Body.Close()
-	if err := json.Unmarshal(buf.Bytes(), output); err != nil {
-		return err
-	}
 
-	return nil
+	return json.Unmarshal(buf.Bytes(), output)
 }
 
-func (c *Client) fetch(endpoint string, ctx context.Context, input map[string]interface{}, output interface{}) error {
+func (c *Client) fetch(ctx context.Context, endpoint string, input map[string]interface{}, output interface{}) error {
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return err

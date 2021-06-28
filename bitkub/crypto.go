@@ -20,7 +20,7 @@ type CryptoDepositHistoryRequest struct {
 
 func (s *CryptoService) DepositHistory(ctx context.Context, req *CryptoDepositHistoryRequest) ([]*CryptoDeposit, error) {
 	var output []*CryptoDeposit
-	if err := s.client.fetchSecureList("/api/crypto/deposit-history", ctx, &req.Pagination, nil, &output); err != nil {
+	if err := s.client.fetchSecureList(ctx, "/api/crypto/deposit-history", &req.Pagination, nil, &output); err != nil {
 		return nil, err
 	}
 	return output, nil

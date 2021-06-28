@@ -19,7 +19,7 @@ type FiatDepositHistoryRequest struct {
 // DepositHistory lists the fiat deposit history. It uses pagination.
 func (s *FiatService) DepositHistory(ctx context.Context, req *FiatDepositHistoryRequest) ([]*FiatDeposit, error) {
 	var output []*FiatDeposit
-	if err := s.client.fetchSecureList("/api/fiat/deposit-history", ctx, &req.Pagination, nil, &output); err != nil {
+	if err := s.client.fetchSecureList(ctx, "/api/fiat/deposit-history", &req.Pagination, nil, &output); err != nil {
 		return nil, err
 	}
 	return output, nil
