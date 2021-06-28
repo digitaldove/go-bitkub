@@ -88,7 +88,8 @@ func (c *Client) nextNonce() uint64 {
 	return atomic.AddUint64(&c.nonce, 1)
 }
 
-func (c *Client) fetchSecure2(endpoint string, ctx context.Context, input, output interface{}) (*Response, error) {
+// TODO: context.Context should be the first parameter of the function
+func (c *Client) internalSecureFetch(ctx context.Context, endpoint string, input, output interface{}) (*Response, error) {
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
@@ -142,13 +143,16 @@ func (c *Client) fetchSecure2(endpoint string, ctx context.Context, input, outpu
 	return res, nil
 }
 
-func (c *Client) fetchSecure(endpoint string, ctx context.Context, input, output interface{}) error {
-	_, err := c.fetchSecure2(endpoint, ctx, input, output)
+func (c *Client) fetchSecure(endpoint string, input, output interface{}) error {
+	return c.fetchSecureContext(context.Background(), endpoint, input, output)
+}
+
+func (c *Client) fetchSecureContext(ctx context.Context, endpoint string, input, output interface{}) error {
+	_, err := c.internalSecureFetch(ctx, endpoint, input, output)
 	return err
 }
 
-func (c *Client) fetchSecureList(endpoint string, ctx context.Context,
-	pagination *Pagination, input, output interface{}) error {
+func (c *Client) fetchSecureList(ctx context.Context, endpoint string, pagination *Pagination, input, output interface{}) error {
 	if (pagination.Page > 0 || pagination.Limit > 0) && !pagination.InBody {
 		u, err := url.Parse(endpoint)
 		if err != nil {
@@ -165,7 +169,7 @@ func (c *Client) fetchSecureList(endpoint string, ctx context.Context,
 		u.RawQuery = q.Encode()
 		endpoint = u.String()
 	}
-	raw, err := c.fetchSecure2(endpoint, ctx, input, output)
+	raw, err := c.internalSecureFetch(ctx, endpoint, input, output)
 	if err != nil {
 		pagination.Done = true
 		return err

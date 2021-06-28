@@ -10,7 +10,7 @@ type MarketService service
 
 func (s *MarketService) Wallet(ctx context.Context) (map[string]float32, error) {
 	res := make(map[string]float32)
-	if err := s.client.fetchSecure("/api/market/wallet", ctx, nil, &res); err != nil {
+	if err := s.client.fetchSecureContext(ctx, "/api/market/wallet", nil, &res); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -26,7 +26,7 @@ func (s *MarketService) ListSymbols(ctx context.Context) ([]*Symbol, error) {
 	out := new(Response)
 	var res []*Symbol
 	out.Result = &res
-	if err := s.client.fetch("/api/market/symbols", ctx, nil, out); err != nil {
+	if err := s.client.fetch(ctx, "/api/market/symbols", nil, out); err != nil {
 		return nil, err
 	}
 	if out.Error != 0 {
@@ -52,7 +52,7 @@ func (s *MarketService) GetTicker(ctx context.Context, symbols ...string) (map[s
 	res := make(map[string]*Ticker)
 	input := make(map[string]interface{})
 	input["sym"] = strings.Join(symbols, ",")
-	if err := s.client.fetch("/api/market/ticker", ctx, input, &res); err != nil {
+	if err := s.client.fetch(ctx, "/api/market/ticker", input, &res); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -62,9 +62,9 @@ type OrderHistory struct {
 	TransactionID   string    `json:"txn_id"`
 	OrderID         int64     `json:"order_id"`
 	Hash            string    `json:"hash"`
-	ParentOrderId   int64     `json:"parent_order_id"`
+	ParentOrderID   int64     `json:"parent_order_id"`
 	ParentOrderHash string    `json:"parent_order_hash"` // undocumented
-	SuperOrderId    int64     `json:"super_order_id"`
+	SuperOrderID    int64     `json:"super_order_id"`
 	SuperOrderHash  string    `json:"super_order_hash"` // undocumented
 	TakenByMe       bool      `json:"taken_by_me"`
 	IsMaker         bool      `json:"is_maker"`
@@ -102,7 +102,56 @@ func (s *MarketService) MyOrderHistory(ctx context.Context, req *MyOrderHistoryR
 		input["lmt"] = req.Pagination.Limit
 	}
 	var output []*OrderHistory
-	if err := s.client.fetchSecureList("/api/market/my-order-history", ctx, &req.Pagination, input, &output); err != nil {
+	if err := s.client.fetchSecureList(ctx, "/api/market/my-order-history", &req.Pagination, input, &output); err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+// OrderInfoRequest ..
+type OrderInfoRequest struct {
+	Symbol string `json:"sym"`
+	ID     int    `json:"id"`
+	SD     string `json:"sd"`
+	Hash   string `json:"hash"`
+}
+
+// OrderInfo response
+type OrderInfo struct {
+	ID      int                `json:"id"`
+	First   int                `json:"first"`
+	Parent  int                `json:"parent"`
+	Last    int                `json:"last"`
+	Amount  int                `json:"amount"`
+	Rate    int                `json:"rate"`
+	Fee     int                `json:"fee"`
+	Credit  int                `json:"credit"`
+	Filled  float64            `json:"filled"`
+	Total   int                `json:"total"`
+	Status  string             `json:"status"` // can only be "filled" or "unfilled"\
+	History []OrderInfoHistory `json:"history"`
+}
+
+// OrderInfoHistory shows historical data of the order
+type OrderInfoHistory struct {
+	Amount    float64   `json:"amount"`
+	Credit    float64   `json:"credit"`
+	Fee       float64   `json:"fee"`
+	ID        int       `json:"id"`
+	Rate      int       `json:"rate"`
+	Timestamp Timestamp `json:"timestamp"`
+}
+
+// OrderInfo calls /api/market/order-info
+func (s *MarketService) OrderInfo(ctx context.Context, req *OrderInfoRequest) ([]*OrderInfo, error) {
+	return s.OrderInfoContext(ctx, req)
+}
+
+// OrderInfoContext calls /api/market/order-info with context deadline
+func (s *MarketService) OrderInfoContext(ctx context.Context, req *OrderInfoRequest) ([]*OrderInfo, error) {
+	// Since OrderInfo API required all fields per OrderInfoRequest
+	var output []*OrderInfo
+	if err := s.client.fetchSecureContext(ctx, "/api/market/order-info", req, &output); err != nil {
 		return nil, err
 	}
 	return output, nil
