@@ -130,7 +130,7 @@ func (c *Client) internalSecureFetch(ctx context.Context, endpoint string, input
 		return nil, err
 	}
 
-	req.Header.Set(headerApiKey, creds.Key)
+	req.Header.Set(headerAPIKey, creds.Key)
 
 	res := new(Response)
 	res.Result = output

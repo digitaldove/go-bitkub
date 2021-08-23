@@ -13,9 +13,12 @@ import (
 const (
 	defaultBaseURL = "https://api.bitkub.com/"
 	userAgent      = "go-bitkub"
-	headerApiKey   = "X-BTK-APIKEY"
+	headerAPIKey   = "X-BTK-APIKEY"
 )
 
+// TODO a zero-valued client should be usable?
+
+// A Client is a Bitkub client. Its zero value is not usable. To get a usable client, bitkub.NewClient must be used.
 type Client struct {
 	client *http.Client
 
@@ -33,6 +36,7 @@ type Client struct {
 	nonce  uint64
 }
 
+// NewClient creates a new bitkub.Client with the specified options.
 func NewClient(options ...*Options) *Client {
 	var opts Options
 	if len(options) > 0 {

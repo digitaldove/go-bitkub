@@ -85,6 +85,7 @@ type MyOrderHistoryRequest struct {
 	Pagination Pagination
 }
 
+// MyOrderHistory lists all orders that have already matched.
 func (s *MarketService) MyOrderHistory(ctx context.Context, req *MyOrderHistoryRequest) ([]*OrderHistory, error) {
 	req.Pagination.InBody = true
 	input := make(map[string]interface{})

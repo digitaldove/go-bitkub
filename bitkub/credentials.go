@@ -2,7 +2,9 @@ package bitkub
 
 import "context"
 
-const CtxKeyCredentials = "btk-creds"
+const CtxKeyCredentials CtxKey = "btk-creds"
+
+type CtxKey string
 
 type Credentials struct {
 	Key    string
