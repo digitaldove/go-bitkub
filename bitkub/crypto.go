@@ -5,13 +5,14 @@ import "context"
 type CryptoService service
 
 type CryptoDeposit struct {
-	Hash          string      `json:"hash"`
-	Currency      string      `json:"currency"`
-	Amount        float64     `json:"amount"`
-	Address       interface{} `json:"address"`
-	Confirmations int         `json:"confirmations"`
-	Status        string      `json:"status"`
-	Time          Timestamp   `json:"time"`
+	Hash          string    `json:"hash"`
+	Currency      string    `json:"currency"`
+	Amount        float64   `json:"amount"`
+	FromAddress   string    `json:"from_address"`
+	ToAddress     string    `json:"to_address"`
+	Confirmations int       `json:"confirmations"`
+	Status        string    `json:"status"`
+	Time          Timestamp `json:"time"`
 }
 
 type CryptoDepositHistoryRequest struct {
