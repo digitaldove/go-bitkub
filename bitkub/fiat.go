@@ -24,3 +24,25 @@ func (s *FiatService) DepositHistory(ctx context.Context, req *FiatDepositHistor
 	}
 	return output, nil
 }
+
+type FiatWithdraw struct {
+	TransactionID string    `json:"txn_id"`
+	Currency      string    `json:"currency"`
+	Amount        float64   `json:"amount,string"`
+	Fee           float64   `json:"fee"`
+	Status        string    `json:"status"`
+	Time          Timestamp `json:"time"`
+}
+
+type FiatWithdrawHistoryRequest struct {
+	Pagination Pagination
+}
+
+// WithdrawHistory lists the fiat withdrawal history. It uses pagination.
+func (s *FiatService) WithdrawHistory(ctx context.Context, req *FiatWithdrawHistoryRequest) ([]*FiatWithdraw, error) {
+	var output []*FiatWithdraw
+	if err := s.client.fetchSecureList(ctx, "/api/fiat/withdraw-history", &req.Pagination, nil, &output); err != nil {
+		return nil, err
+	}
+	return output, nil
+}
