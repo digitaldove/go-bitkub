@@ -1,6 +1,8 @@
 package bitkub
 
-import "context"
+import (
+	"context"
+)
 
 type CryptoService service
 
@@ -50,4 +52,34 @@ func (s *CryptoService) WithdrawHistory(ctx context.Context, req *CryptoWithdraw
 		return nil, err
 	}
 	return output, nil
+}
+
+type CryptoWithdrawRequest struct {
+	//Currency for withdrawal (e.g. BTC, ETH)
+	Currency string `json:"cur"`
+	//Amount you want to withdraw
+	Amount float64 `json:"amt"`
+	//Address to which you want to withdraw
+	Address string `json:"adr"`
+	//(Optional) Memo or destination tag to which you want to withdraw
+	Memo string `json:"mem,omitempty"`
+}
+
+type CryptoWithdrawResult struct {
+	TransactionId string    `json:"txn"`
+	Address       string    `json:"adr"`
+	Memo          string    `json:"mem,omitempty"`
+	Currency      string    `json:"cur"`
+	Amount        float64   `json:"amt"`
+	Fee           float64   `json:"fee"`
+	Timestamp     Timestamp `json:"ts"`
+}
+
+// Withdraw crypto to a trusted address.
+func (s *CryptoService) Withdraw(ctx context.Context, req *CryptoWithdrawRequest) (*CryptoWithdrawResult, error) {
+	var res CryptoWithdrawResult
+	if err := s.client.fetchSecureContext(ctx, "/api/crypto/withdraw", req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
