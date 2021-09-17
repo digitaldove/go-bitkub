@@ -2,6 +2,7 @@ package bitkub
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 )
@@ -56,6 +57,140 @@ func (s *MarketService) GetTicker(ctx context.Context, symbols ...string) (map[s
 		return nil, err
 	}
 	return res, nil
+}
+
+type TradeInfoRequest struct {
+	Symbol string `json:"sym"`
+	Limit  int    `json:"lmt"`
+}
+
+func (t TradeInfoRequest) Map() map[string]interface{} {
+	m := make(map[string]interface{})
+	m["sym"] = t.Symbol
+	m["lmt"] = t.Limit
+	return m
+}
+
+type Trade struct {
+	Timestamp Timestamp
+	Rate      float64
+	Amount    float64
+	Side      string
+}
+
+func (t *Trade) UnmarshalJSON(b []byte) error {
+	// Bitkub API for some reason chose to return it as an array, instead of an object
+	return json.Unmarshal(b, &[]interface{}{&t.Timestamp, &t.Rate, &t.Amount, &t.Side})
+}
+
+func (s *MarketService) ListTrades(ctx context.Context, req *TradeInfoRequest) ([]*Trade, error) {
+	var list []*Trade
+	res := Response{
+		Result: &list,
+	}
+	if err := s.client.fetch(ctx, "/api/market/trades", req.Map(), &res); err != nil {
+		return nil, err
+	}
+	if res.Error != 0 {
+		return nil, newBtkError(res.Error)
+	}
+	return list, nil
+}
+
+type BidAsk struct {
+	OrderId   int
+	Timestamp Timestamp
+	Volume    float64
+	Rate      float64
+	Amount    float64
+}
+
+func (t *BidAsk) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &[]interface{}{&t.OrderId, &t.Timestamp, &t.Volume, &t.Rate, &t.Amount})
+}
+
+func (s *MarketService) ListBids(ctx context.Context, req *TradeInfoRequest) ([]*BidAsk, error) {
+	var list []*BidAsk
+	res := Response{Result: &list}
+	if err := s.client.fetch(ctx, "/api/market/bids", req.Map(), &res); err != nil {
+		return nil, err
+	}
+	if res.Error != 0 {
+		return nil, newBtkError(res.Error)
+	}
+	return list, nil
+}
+
+func (s *MarketService) ListAsks(ctx context.Context, req *TradeInfoRequest) ([]*BidAsk, error) {
+	var list []*BidAsk
+	res := Response{Result: &list}
+	if err := s.client.fetch(ctx, "/api/market/asks", req.Map(), &res); err != nil {
+		return nil, err
+	}
+	if res.Error != 0 {
+		return nil, newBtkError(res.Error)
+	}
+	return list, nil
+}
+
+type Book struct {
+	Bids []*BidAsk `json:"bids"`
+	Asks []*BidAsk `json:"asks"`
+}
+
+func (s *MarketService) OrderBook(ctx context.Context, req *TradeInfoRequest) (*Book, error) {
+	var book Book
+	res := Response{Result: &book}
+	if err := s.client.fetch(ctx, "/api/market/books", req.Map(), &res); err != nil {
+		return nil, err
+	}
+	if res.Error != 0 {
+		return nil, newBtkError(res.Error)
+	}
+	return &book, nil
+}
+
+/* TODO cannot seem to get the API to return useful information, need help
+type TradingViewRequest struct {
+	Symbol   string
+	Interval time.Duration
+	From     time.Time
+	To       time.Time
+}
+
+func (t TradingViewRequest) Map() map[string]interface{} {
+	m := make(map[string]interface{})
+	m["sym"] = t.Symbol
+	m["int"] = int(t.Interval / time.Second)
+	m["frm"] = NewTimestamp(t.From)
+	m["to"] = NewTimestamp(t.To)
+	return m
+}
+
+type TradingViewResponse struct {
+}
+*/
+
+type DepthResponse struct {
+	Asks []*Depth
+	Bids []*Depth
+}
+
+type Depth struct {
+	Price  float64
+	Volume float64
+}
+
+func (d *Depth) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &[]interface{}{&d.Price, &d.Volume})
+}
+
+func (s *MarketService) GetDepth(ctx context.Context, req *TradeInfoRequest) (*DepthResponse, error) {
+	var depth DepthResponse
+	if err := s.client.fetch(ctx, "/api/market/depth", req.Map(), &depth); err != nil {
+		return nil, err
+	}
+	return &depth, nil
 }
 
 type OrderHistory struct {
