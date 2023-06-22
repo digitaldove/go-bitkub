@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 )
 
 const (
@@ -114,7 +115,11 @@ func (c *Client) do(ctx context.Context, req *http.Request, output interface{}) 
 	}
 	defer httpRes.Body.Close()
 
-	return json.Unmarshal(buf.Bytes(), output)
+	err = json.Unmarshal(buf.Bytes(), output)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "DBG Client.do unmarshal error %T, data: %s\n", err, buf.String())
+	}
+	return err
 }
 
 func (c *Client) fetch(ctx context.Context, endpoint string, input map[string]interface{}, output interface{}) error {

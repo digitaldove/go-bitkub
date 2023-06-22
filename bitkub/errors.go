@@ -52,6 +52,12 @@ func init() {
 	errorMessages[49] = "Bank limit exceeds"
 	errorMessages[50] = "Pending withdrawal exists"
 	errorMessages[51] = "Withdrawal is under maintenance"
+	errorMessages[52] = "Invalid permission"
+	errorMessages[53] = "Invalid internal address"
+	errorMessages[54] = "Address has been deprecated"
+	errorMessages[55] = "Cancel only mode"
+	errorMessages[56] = "User has been suspended from purchasing"
+	errorMessages[57] = "User has been suspended from selling"
 	errorMessages[90] = "Server error (please contact support)"
 }
 

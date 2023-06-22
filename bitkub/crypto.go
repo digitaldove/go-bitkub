@@ -54,6 +54,25 @@ func (s *CryptoService) WithdrawHistory(ctx context.Context, req *CryptoWithdraw
 	return output, nil
 }
 
+type ListAddressesRequest struct {
+	Pagination
+}
+
+type Address struct {
+	Currency string    `json:"currency"`
+	Address  string    `json:"address"`
+	Tag      string       `json:"tag"`
+	Time     Timestamp `json:"time"`
+}
+
+func (s *CryptoService) ListAddresses(ctx context.Context, req *ListAddressesRequest) ([]*Address, error) {
+	var res []*Address
+	if err := s.client.fetchSecureList(ctx, "/api/crypto/addresses", &req.Pagination, nil, &res); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 type CryptoWithdrawRequest struct {
 	//Currency for withdrawal (e.g. BTC, ETH)
 	Currency string `json:"cur"`

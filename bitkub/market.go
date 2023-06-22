@@ -3,6 +3,8 @@ package bitkub
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -98,7 +100,7 @@ func (s *MarketService) ListTrades(ctx context.Context, req *TradeInfoRequest) (
 }
 
 type BidAsk struct {
-	OrderId   int
+	OrderId   string
 	Timestamp Timestamp
 	Volume    float64
 	Rate      float64
@@ -195,22 +197,51 @@ func (s *MarketService) GetDepth(ctx context.Context, req *TradeInfoRequest) (*D
 
 type OrderHistory struct {
 	TransactionID   string    `json:"txn_id"`
-	OrderID         int64     `json:"order_id"`
+	OrderID         string    `json:"order_id"`
 	Hash            string    `json:"hash"`
-	ParentOrderID   int64     `json:"parent_order_id"`
+	ParentOrderID   string    `json:"parent_order_id"`
 	ParentOrderHash string    `json:"parent_order_hash"` // undocumented
-	SuperOrderID    int64     `json:"super_order_id"`
+	SuperOrderID    string    `json:"super_order_id"`
 	SuperOrderHash  string    `json:"super_order_hash"` // undocumented
 	TakenByMe       bool      `json:"taken_by_me"`
 	IsMaker         bool      `json:"is_maker"`
 	Side            string    `json:"side"`
 	Type            string    `json:"type"`
-	Rate            float64   `json:"rate"`
-	Fee             float64   `json:"fee"`
-	Credit          float64   `json:"credit"`
-	Amount          float64   `json:"amount"`
+	Rate            Float64s  `json:"rate"`
+	Fee             Float64s  `json:"fee"`
+	Credit          Float64s  `json:"credit"`
+	Amount          Float64s  `json:"amount"`
 	Timestamp       Timestamp `json:"ts"`
 	// Date            time.Time `json:"date"` // undocumented // ignore because using a non-standard format
+}
+
+// Float64s is just a float64, but dum Bitkub is not consistent in its API
+// which sometimes quote and unquote numbers in its responses
+type Float64s float64
+
+func (v *Float64s) UnmarshalJSON(b []byte) error {
+	var s interface{}
+	var err error
+	if err = json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	if s == nil {
+		// TODO is this an error?
+		*v = 0
+		return nil
+	}
+	switch s.(type) {
+	case string:
+		*(*float64)(v), err = strconv.ParseFloat(s.(string), 64)
+		if err != nil {
+			return err
+		}
+	case float64:
+		*(*float64)(v) = s.(float64)
+	default:
+		return fmt.Errorf("%t is not a string or a number", s)
+	}
+	return nil
 }
 
 type MyOrderHistoryRequest struct {
@@ -247,17 +278,17 @@ func (s *MarketService) MyOrderHistory(ctx context.Context, req *MyOrderHistoryR
 // OrderInfoRequest ..
 type OrderInfoRequest struct {
 	Symbol string `json:"sym"`
-	ID     int    `json:"id"`
+	ID     string `json:"id"`
 	SD     string `json:"sd"`
 	Hash   string `json:"hash"`
 }
 
 // OrderInfo response
 type OrderInfo struct {
-	ID      int                `json:"id"`
-	First   int                `json:"first"`
-	Parent  int                `json:"parent"`
-	Last    int                `json:"last"`
+	ID      string             `json:"id"`
+	First   string             `json:"first"`
+	Parent  string             `json:"parent"`
+	Last    string             `json:"last"`
 	Amount  int                `json:"amount"`
 	Rate    int                `json:"rate"`
 	Fee     int                `json:"fee"`
@@ -273,7 +304,7 @@ type OrderInfoHistory struct {
 	Amount    float64   `json:"amount"`
 	Credit    float64   `json:"credit"`
 	Fee       float64   `json:"fee"`
-	ID        int       `json:"id"`
+	ID        string    `json:"id"`
 	Rate      int       `json:"rate"`
 	Timestamp Timestamp `json:"timestamp"`
 }
