@@ -58,6 +58,7 @@ func init() {
 	errorMessages[55] = "Cancel only mode"
 	errorMessages[56] = "User has been suspended from purchasing"
 	errorMessages[57] = "User has been suspended from selling"
+	errorMessages[58] = "Transaction not found"
 	errorMessages[90] = "Server error (please contact support)"
 }
 

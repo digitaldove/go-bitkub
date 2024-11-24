@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -88,26 +89,23 @@ func (c *Client) nextNonce() uint64 {
 	return atomic.AddUint64(&c.nonce, 1)
 }
 
-// TODO: context.Context should be the first parameter of the function
-func (c *Client) internalSecureFetch(ctx context.Context, endpoint string, input, output interface{}) (*Response, error) {
+func (c *Client) internalSecureFetch(ctx context.Context, method, endpoint string, input, output interface{}) (*Response, error) {
 	buf := &bytes.Buffer{}
-	enc := json.NewEncoder(buf)
-	enc.SetEscapeHTML(false)
-	if input != nil {
+
+	ts := strconv.FormatInt(time.Now().Add(c.dt).UnixMilli(), 10)
+	buf.WriteString(ts)
+	buf.WriteString(method)
+	buf.WriteString(endpoint)
+	bStart := buf.Len()
+	// ignore body when method is GET, DELETE, TRACE
+	if input != nil && !slices.Contains([]string{http.MethodGet, http.MethodDelete, http.MethodTrace}, method) {
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
 		if err := enc.Encode(input); err != nil {
 			return nil, err
 		}
-		buf.Truncate(buf.Len() - 2) // remove the newline and closing }
-		buf.WriteString(`,"ts":`)
-	} else {
-		buf.WriteString(`{"ts":`)
 	}
-	buf.WriteString(strconv.FormatInt(time.Now().Unix(), 10))
-	/* seems like nonce is tied to the api key, so no way of knowing which nonce we have to start with right now
-	buf.WriteString(`,"non":`)
-	buf.WriteString(strconv.FormatUint(c.nextNonce(), 10))
-	*/
-	buf.WriteRune('}')
+	body := bytes.NewReader(buf.Bytes()[bStart:])
 
 	creds := c.Credentials
 	if overrideCreds, ok := ctx.Value(CtxKeyCredentials).(*Credentials); ok && overrideCreds != nil {
@@ -120,17 +118,16 @@ func (c *Client) internalSecureFetch(ctx context.Context, endpoint string, input
 	if _, err := bytes.NewReader(buf.Bytes()).WriteTo(h); err != nil {
 		return nil, err
 	}
-	buf.Truncate(buf.Len() - 1) // remove the closing }
-	buf.WriteString(`,"sig":"`)
-	buf.WriteString(hex.EncodeToString(h.Sum(nil)))
-	buf.WriteString(`"}`)
+	sig := hex.EncodeToString(h.Sum(nil))
 
-	req, err := c.request(http.MethodPost, endpoint, buf)
+	req, err := c.request(method, endpoint, body)
 	if err != nil {
 		return nil, err
 	}
 
+	req.Header.Set(headerTimestamp, ts)
 	req.Header.Set(headerAPIKey, creds.Key)
+	req.Header.Set(headerSignature, sig)
 
 	res := new(Response)
 	res.Result = output
@@ -143,23 +140,19 @@ func (c *Client) internalSecureFetch(ctx context.Context, endpoint string, input
 	return res, nil
 }
 
-func (c *Client) fetchSecure(endpoint string, input, output interface{}) error {
-	return c.fetchSecureContext(context.Background(), endpoint, input, output)
-}
-
-func (c *Client) fetchSecureContext(ctx context.Context, endpoint string, input, output interface{}) error {
-	_, err := c.internalSecureFetch(ctx, endpoint, input, output)
+func (c *Client) fetchSecure(ctx context.Context, method, endpoint string, input, output interface{}) error {
+	_, err := c.internalSecureFetch(ctx, method, endpoint, input, output)
 	return err
 }
 
-func (c *Client) fetchSecureList(ctx context.Context, endpoint string, pagination *Pagination, input, output interface{}) error {
+func (c *Client) fetchSecureList(ctx context.Context, method, endpoint string, pagination *Pagination, input, output interface{}) error {
 	if (pagination.Page > 0 || pagination.Limit > 0) && !pagination.InBody {
 		u, err := url.Parse(endpoint)
 		if err != nil {
 			pagination.Done = true
 			return err
 		}
-		q := make(url.Values)
+		q := u.Query()
 		if pagination.Page > 0 {
 			q.Set("p", strconv.Itoa(pagination.Page))
 		}
@@ -169,7 +162,7 @@ func (c *Client) fetchSecureList(ctx context.Context, endpoint string, paginatio
 		u.RawQuery = q.Encode()
 		endpoint = u.String()
 	}
-	raw, err := c.internalSecureFetch(ctx, endpoint, input, output)
+	raw, err := c.internalSecureFetch(ctx, method, endpoint, input, output)
 	if err != nil {
 		pagination.Done = true
 		return err

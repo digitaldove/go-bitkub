@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -11,9 +13,9 @@ import (
 
 type MarketService service
 
-func (s *MarketService) Wallet(ctx context.Context) (map[string]float32, error) {
-	res := make(map[string]float32)
-	if err := s.client.fetchSecureContext(ctx, "/api/market/wallet", nil, &res); err != nil {
+func (s *MarketService) Wallet(ctx context.Context) (map[string]float64, error) {
+	res := make(map[string]float64)
+	if err := s.client.fetchSecure(ctx, http.MethodPost, "/api/v3/market/wallet", nil, &res); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -74,7 +76,7 @@ func (t TradeInfoRequest) Map() map[string]interface{} {
 }
 
 type Trade struct {
-	Timestamp Timestamp
+	Timestamp TimestampV2
 	Rate      float64
 	Amount    float64
 	Side      string
@@ -101,7 +103,7 @@ func (s *MarketService) ListTrades(ctx context.Context, req *TradeInfoRequest) (
 
 type BidAsk struct {
 	OrderId   string
-	Timestamp Timestamp
+	Timestamp TimestampV2
 	Volume    float64
 	Rate      float64
 	Amount    float64
@@ -196,22 +198,23 @@ func (s *MarketService) GetDepth(ctx context.Context, req *TradeInfoRequest) (*D
 }
 
 type OrderHistory struct {
-	TransactionID   string    `json:"txn_id"`
-	OrderID         string    `json:"order_id"`
-	Hash            string    `json:"hash"`
-	ParentOrderID   string    `json:"parent_order_id"`
-	ParentOrderHash string    `json:"parent_order_hash"` // undocumented
-	SuperOrderID    string    `json:"super_order_id"`
-	SuperOrderHash  string    `json:"super_order_hash"` // undocumented
-	TakenByMe       bool      `json:"taken_by_me"`
-	IsMaker         bool      `json:"is_maker"`
-	Side            string    `json:"side"`
-	Type            string    `json:"type"`
-	Rate            Float64s  `json:"rate"`
-	Fee             Float64s  `json:"fee"`
-	Credit          Float64s  `json:"credit"`
-	Amount          Float64s  `json:"amount"`
-	Timestamp       Timestamp `json:"ts"`
+	TransactionID   string      `json:"txn_id"`
+	OrderID         string      `json:"order_id"`
+	Hash            string      `json:"hash"`
+	ParentOrderID   string      `json:"parent_order_id"`
+	ParentOrderHash string      `json:"parent_order_hash"` // undocumented
+	SuperOrderID    string      `json:"super_order_id"`
+	SuperOrderHash  string      `json:"super_order_hash"` // undocumented
+	ClientID        string      `json:"client_id"`
+	TakenByMe       bool        `json:"taken_by_me"`
+	IsMaker         bool        `json:"is_maker"`
+	Side            string      `json:"side"`
+	Type            string      `json:"type"`
+	Rate            Float64s    `json:"rate"`
+	Fee             Float64s    `json:"fee"`
+	Credit          Float64s    `json:"credit"`
+	Amount          Float64s    `json:"amount"`
+	Timestamp       TimestampV3 `json:"ts"`
 	// Date            time.Time `json:"date"` // undocumented // ignore because using a non-standard format
 }
 
@@ -253,23 +256,16 @@ type MyOrderHistoryRequest struct {
 
 // MyOrderHistory lists all orders that have already matched.
 func (s *MarketService) MyOrderHistory(ctx context.Context, req *MyOrderHistoryRequest) ([]*OrderHistory, error) {
-	req.Pagination.InBody = true
-	input := make(map[string]interface{})
-	input["sym"] = req.Symbol
-	if !req.From.IsZero() {
-		input["start"] = req.From.Unix()
-	}
-	if !req.To.IsZero() {
-		input["end"] = req.To.Unix()
-	}
-	if req.Pagination.Page > 0 {
-		input["p"] = req.Pagination.Page
-	}
-	if req.Pagination.Limit > 0 {
-		input["lmt"] = req.Pagination.Limit
+	q := make(url.Values)
+	q.Set("sym", req.Symbol)
+	q.Set("start", strconv.FormatInt(req.From.UnixMilli(), 10))
+	q.Set("end", strconv.FormatInt(req.To.UnixMilli(), 10))
+	u := &url.URL{
+		Path:     "/api/v3/market/my-order-history",
+		RawQuery: q.Encode(),
 	}
 	var output []*OrderHistory
-	if err := s.client.fetchSecureList(ctx, "/api/market/my-order-history", &req.Pagination, input, &output); err != nil {
+	if err := s.client.fetchSecureList(ctx, http.MethodGet, u.String(), &req.Pagination, nil, &output); err != nil {
 		return nil, err
 	}
 	return output, nil
@@ -279,46 +275,48 @@ func (s *MarketService) MyOrderHistory(ctx context.Context, req *MyOrderHistoryR
 type OrderInfoRequest struct {
 	Symbol string `json:"sym"`
 	ID     string `json:"id"`
-	SD     string `json:"sd"`
+	Side   string `json:"sd"`
 	Hash   string `json:"hash"`
 }
 
 // OrderInfo response
 type OrderInfo struct {
-	ID      string             `json:"id"`
-	First   string             `json:"first"`
-	Parent  string             `json:"parent"`
-	Last    string             `json:"last"`
-	Amount  int                `json:"amount"`
-	Rate    int                `json:"rate"`
-	Fee     int                `json:"fee"`
-	Credit  int                `json:"credit"`
-	Filled  float64            `json:"filled"`
-	Total   int                `json:"total"`
-	Status  string             `json:"status"` // can only be "filled" or "unfilled"\
+	ID            string  `json:"id"`
+	First         string  `json:"first"`
+	Parent        string  `json:"parent"`
+	Last          string  `json:"last"`
+	ClientID      string  `json:"client_id"`
+	PostOnly      bool    `json:"post_only"`
+	Amount        int     `json:"amount"`
+	Rate          int     `json:"rate"`
+	Fee           int     `json:"fee"`
+	Credit        int     `json:"credit"`
+	Filled        float64 `json:"filled"`
+	Total         int     `json:"total"`
+	Status        string  `json:"status"` // can only be "filled" or "unfilled"\
+	PartialFilled bool    `json:"partial_filled"`
+	Remaining     float64 `json:"remaining"`
+
 	History []OrderInfoHistory `json:"history"`
 }
 
 // OrderInfoHistory shows historical data of the order
 type OrderInfoHistory struct {
-	Amount    float64   `json:"amount"`
-	Credit    float64   `json:"credit"`
-	Fee       float64   `json:"fee"`
-	ID        string    `json:"id"`
-	Rate      int       `json:"rate"`
-	Timestamp Timestamp `json:"timestamp"`
+	Amount        float64     `json:"amount"`
+	Credit        float64     `json:"credit"`
+	Fee           float64     `json:"fee"`
+	Hash          string      `json:"hash"`
+	ID            string      `json:"id"`
+	Rate          int         `json:"rate"`
+	Timestamp     TimestampV2 `json:"timestamp"`
+	TransactionID string      `json:"transaction_id"`
 }
 
 // OrderInfo calls /api/market/order-info
 func (s *MarketService) OrderInfo(ctx context.Context, req *OrderInfoRequest) ([]*OrderInfo, error) {
-	return s.OrderInfoContext(ctx, req)
-}
-
-// OrderInfoContext calls /api/market/order-info with context deadline
-func (s *MarketService) OrderInfoContext(ctx context.Context, req *OrderInfoRequest) ([]*OrderInfo, error) {
 	// Since OrderInfo API required all fields per OrderInfoRequest
 	var output []*OrderInfo
-	if err := s.client.fetchSecureContext(ctx, "/api/market/order-info", req, &output); err != nil {
+	if err := s.client.fetchSecure(ctx, http.MethodPost, "/api/v3/market/order-info", req, &output); err != nil {
 		return nil, err
 	}
 	return output, nil

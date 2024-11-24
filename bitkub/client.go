@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 )
 
 const (
-	defaultBaseURL = "https://api.bitkub.com/"
-	userAgent      = "go-bitkub"
-	headerAPIKey   = "X-BTK-APIKEY"
+	defaultBaseURL  = "https://api.bitkub.com/"
+	userAgent       = "go-bitkub"
+	headerAPIKey    = "X-BTK-APIKEY"
+	headerTimestamp = "X-BTK-TIMESTAMP"
+	headerSignature = "X-BTK-SIGN"
 )
 
 // TODO a zero-valued client should be usable?
@@ -33,6 +36,8 @@ type Client struct {
 	Fiat   *FiatService
 	Crypto *CryptoService
 	User   *UserService
+
+	dt time.Duration
 
 	common service
 	nonce  uint64
@@ -72,6 +77,12 @@ func NewClient(options ...*Options) *Client {
 	c.Crypto = (*CryptoService)(&c.common)
 	c.User = (*UserService)(&c.common)
 
+	// must block, too many invalid ts errors otherwise
+	_, err := c.Server.Time(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+
 	return c
 }
 
@@ -79,7 +90,7 @@ type service struct {
 	client *Client
 }
 
-func (c *Client) request(method, endpoint string, body io.ReadWriter) (*http.Request, error) {
+func (c *Client) request(method, endpoint string, body io.Reader) (*http.Request, error) {
 	// https://github.com/google/go-github/blob/master/github/github.go
 	u, err := c.BaseURL.Parse(endpoint)
 	if err != nil {

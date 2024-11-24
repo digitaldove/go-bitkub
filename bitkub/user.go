@@ -1,6 +1,9 @@
 package bitkub
 
-import "context"
+import (
+	"context"
+	"net/http"
+)
 
 type UserService service
 
@@ -40,7 +43,7 @@ type Limit struct {
 
 func (s *UserService) GetLimits(ctx context.Context) (*UserLimits, error) {
 	var res UserLimits
-	if err := s.client.fetchSecureContext(ctx, "/api/user/limits", nil, &res); err != nil {
+	if err := s.client.fetchSecure(ctx, http.MethodPost, "/api/v3/user/limits", nil, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -48,7 +51,7 @@ func (s *UserService) GetLimits(ctx context.Context) (*UserLimits, error) {
 
 func (s *UserService) GetTradingCredits(ctx context.Context) (float64, error) {
 	var res float64
-	if err := s.client.fetchSecureContext(ctx, "/api/user/trading-credits", nil, &res); err != nil {
+	if err := s.client.fetchSecure(ctx, http.MethodPost, "/api/v3/user/trading-credits", nil, &res); err != nil {
 		return 0, err
 	}
 	return res, nil
